@@ -1,36 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
-import Stepper from "@/components/Stepper";
 import Step1 from "@/components/Step1";
 import Step2 from "@/components/Step2";
 import Step3 from "@/components/Step3";
 
 export default function Page() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({
-    // Step 1
-    name: "",
-    email: "",
-    gender: "",
-    address: "",
-    city: "",
-    country: "",
-    dateOfBirthBS: "",
-    dateOfBirthAD: "",
-    // Step 2
-    citizenshipNumber: "",
-    issuedDistrict: "",
-    issuedDateBS: "",
-    issuedDateAD: "",
-    frontFilePreview: "",
-    backFilePreview: "",
-  });
+  const [formData, setFormData] = useState<any>({});
 
-  const steps = ["Personal Info", "Citizenship Info", "Confirmation"];
+  const steps = ["Personal Info", "Additional Info", "Review & Submit"];
 
   const handleNext = (data: any) => {
-    setFormData((prev) => ({ ...prev, ...data }));
+    setFormData((prev: any) => ({ ...prev, ...data }));
     setCurrentStep((prev) => prev + 1);
   };
 
@@ -38,33 +20,47 @@ export default function Page() {
     setCurrentStep((prev) => prev - 1);
   };
 
-  const handleSubmit = () => {
-    console.log("Form submitted successfully:", formData);
+  const handleSubmitFinal = () => {
+    console.log("Form submitted successfully");
+    console.log(formData);
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white shadow rounded">
-      <Stepper steps={steps} currentStep={currentStep} />
-
-      <div className="mt-6">
-        {currentStep === 0 && (
-          <Step1 onNext={handleNext} defaultValues={formData} />
-        )}
-        {currentStep === 1 && (
-          <Step2
-            onNext={handleNext}
-            onBack={handleBack}
-            defaultValues={formData}
-          />
-        )}
-        {currentStep === 2 && (
-          <Step3
-            data={formData}
-            onBack={handleBack}
-            onSubmit={handleSubmit}
-          />
-        )}
+    <div className="max-w-lg mx-auto p-6 bg-white shadow rounded space-y-6">
+      {/* Stepper Header */}
+      <div className="flex justify-between items-center">
+        {steps.map((step, index) => (
+          <div key={index} className="flex-1 text-center">
+            <div
+              className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center ${
+                index <= currentStep
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-300 text-gray-700"
+              }`}
+            >
+              {index + 1}
+            </div>
+            <p
+              className={`mt-2 text-sm ${
+                index === currentStep ? "font-bold text-blue-600" : "text-gray-500"
+              }`}
+            >
+              {step}
+            </p>
+          </div>
+        ))}
       </div>
+
+      {/* Step Forms */}
+      {currentStep === 0 && (
+        <Step1 onNext={handleNext} defaultValues={formData} />
+      )}
+      {currentStep === 1 && (
+        <Step2 onNext={handleNext} onBack={handleBack} defaultValues={formData} />
+      )}
+      {currentStep === 2 && (
+        <Step3 data={formData} onBack={handleBack} onSubmit={handleSubmitFinal} />
+      )}
     </div>
   );
 }
