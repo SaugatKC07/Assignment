@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,9 +13,9 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import DateConverter from "nepali-date-converter"; // ✅ Added
+import DateConverter from "nepali-date-converter";
 
-// Validation schema
+// ✅ Validation schema
 const schema = z
   .object({
     fullNameEnglish: z
@@ -53,12 +53,12 @@ export default function Step1({
   defaultValues?: Partial<FormData>;
 }) {
   const [age, setAge] = useState<number | null>(null);
+  const isSyncing = useRef(false); // Prevents BS-AD loop
 
   const {
     register,
     handleSubmit,
     watch,
-    getValues,
     setValue,
     setError,
     clearErrors,
@@ -69,9 +69,9 @@ export default function Step1({
     defaultValues,
   });
 
-  const gender = watch("gender");
   const dobBS = watch("dobBS");
   const dobAD = watch("dobAD");
+  const gender = watch("gender");
 
   const calculateAge = (date: Date) => {
     const today = new Date();
@@ -84,57 +84,41 @@ export default function Step1({
     setValue("age", years, { shouldValidate: true });
   };
 
-  // ✅ BS → AD conversion using nepali-date-converter
+  // ✅ BS → AD conversion
   useEffect(() => {
-    if (!dobBS) return;
+    if (!dobBS || isSyncing.current) return;
     try {
-      const [bsYear, bsMonth = "01", bsDay = "01"] = dobBS
-        .split("-")
-        .map(Number);
+      isSyncing.current = true;
+      const [bsYear, bsMonth, bsDay] = dobBS.split("-").map(Number);
       const ad = new DateConverter(bsYear, bsMonth, bsDay, "BS").toAd();
-      const formattedAD = `${ad.year}-${String(ad.month).padStart(
-        2,
-        "0"
-      )}-${String(ad.date).padStart(2, "0")}`;
+      const formattedAD = `${ad.year}-${String(ad.month).padStart(2, "0")}-${String(ad.date).padStart(2, "0")}`;
       setValue("dobAD", formattedAD, { shouldValidate: true });
       calculateAge(new Date(formattedAD));
       clearErrors("dobBS");
     } catch {
       setError("dobBS", { message: "Invalid BS date" });
+    } finally {
+      setTimeout(() => (isSyncing.current = false), 0);
     }
   }, [dobBS]);
 
-  // ✅ AD → BS conversion using nepali-date-converter
+  // ✅ AD → BS conversion
   useEffect(() => {
-    if (!dobAD) return;
+    if (!dobAD || isSyncing.current) return;
     try {
-      const [adYear, adMonth = "01", adDay = "01"] = dobAD
-        .split("-")
-        .map(Number);
+      isSyncing.current = true;
+      const [adYear, adMonth, adDay] = dobAD.split("-").map(Number);
       const bs = new DateConverter(adYear, adMonth, adDay, "AD").toBs();
-      const formattedBS = `${bs.year}-${String(bs.month).padStart(
-        2,
-        "0"
-      )}-${String(bs.date).padStart(2, "0")}`;
+      const formattedBS = `${bs.year}-${String(bs.month).padStart(2, "0")}-${String(bs.date).padStart(2, "0")}`;
       setValue("dobBS", formattedBS, { shouldValidate: true });
       calculateAge(new Date(dobAD));
       clearErrors("dobAD");
     } catch {
       setError("dobAD", { message: "Invalid AD date" });
+    } finally {
+      setTimeout(() => (isSyncing.current = false), 0);
     }
   }, [dobAD]);
-
-  const handleNepaliInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === " ") {
-      e.preventDefault();
-      const target = e.target as HTMLInputElement;
-      const start = target.selectionStart || 0;
-      const end = target.selectionEnd || 0;
-      target.value =
-        target.value.substring(0, start) + " " + target.value.substring(end);
-      target.setSelectionRange(start + 1, start + 1);
-    }
-  };
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-4">
@@ -143,29 +127,21 @@ export default function Step1({
         <label className="block mb-1">Full Name (English)</label>
         <Input {...register("fullNameEnglish")} />
         {errors.fullNameEnglish && (
-          <p className="text-red-500 text-sm">
-            {errors.fullNameEnglish.message}
-          </p>
+          <p className="text-red-500 text-sm">{errors.fullNameEnglish.message}</p>
         )}
       </div>
 
       {/* Full Name Nepali */}
       <div>
         <label className="block mb-1">Full Name (Nepali)</label>
-        <Input
-          {...register("fullNameNepali")}
-          onKeyDown={handleNepaliInput}
-          placeholder="नेपालीमा टाइप गर्नुहोस्"
-        />
+        <Input {...register("fullNameNepali")} placeholder="नेपालीमा टाइप गर्नुहोस्" />
       </div>
 
       {/* Gender */}
       <div>
         <label className="block mb-1">Gender</label>
         <Select
-          onValueChange={(val) =>
-            setValue("gender", val as any, { shouldValidate: true })
-          }
+          onValueChange={(val) => setValue("gender", val as any, { shouldValidate: true })}
           value={gender || ""}
         >
           <SelectTrigger>
@@ -177,41 +153,35 @@ export default function Step1({
             <SelectItem value="Other">Other</SelectItem>
           </SelectContent>
         </Select>
-        {errors.gender && (
-          <p className="text-red-500 text-sm">{errors.gender.message}</p>
-        )}
+        {errors.gender && <p className="text-red-500 text-sm">{errors.gender.message}</p>}
       </div>
 
       {/* DOB BS */}
       <div>
         <label className="block mb-1">Date of Birth (BS)</label>
         <Input type="date" {...register("dobBS")} />
-        {errors.dobBS && (
-          <p className="text-red-500 text-sm">{errors.dobBS.message}</p>
-        )}
+        {errors.dobBS && <p className="text-red-500 text-sm">{errors.dobBS.message}</p>}
       </div>
 
       {/* DOB AD */}
       <div>
         <label className="block mb-1">Date of Birth (AD)</label>
         <Input type="date" {...register("dobAD")} />
-        {errors.dobAD && (
-          <p className="text-red-500 text-sm">{errors.dobAD.message}</p>
-        )}
+        {errors.dobAD && <p className="text-red-500 text-sm">{errors.dobAD.message}</p>}
       </div>
 
-      {/* Age */}
+      {/* Age Display */}
       {age !== null && (
-        <p className="text-sm text-gray-700">Calculated Age: {age}</p>
+        <p className="text-sm text-gray-700 font-medium">
+          Calculated Age: {age} years
+        </p>
       )}
 
       {/* Phone */}
       <div>
         <label className="block mb-1">Phone Number</label>
         <Input {...register("phone")} placeholder="98XXXXXXXX" />
-        {errors.phone && (
-          <p className="text-red-500 text-sm">{errors.phone.message}</p>
-        )}
+        {errors.phone && <p className="text-red-500 text-sm">{errors.phone.message}</p>}
       </div>
 
       <Button type="submit" disabled={!isValid}>
