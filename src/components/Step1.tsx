@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useForm } from "react-hook-form"; // ✅ Correct
+
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import DateConverter from "nepali-date-converter";
+import nepalify from "nepalify";
 
 // ✅ Validation schema
 const schema = z
@@ -72,6 +75,15 @@ export default function Step1({
   const dobBS = watch("dobBS");
   const dobAD = watch("dobAD");
   const gender = watch("gender");
+  const fullNameEnglish = watch("fullNameEnglish");
+
+  // ✅ Auto-convert English to Nepali
+  useEffect(() => {
+    if (fullNameEnglish) {
+      const nepaliName = nepalify.format(fullNameEnglish, { lang: "ne" });
+      setValue("fullNameNepali", nepaliName);
+    }
+  }, [fullNameEnglish, setValue]);
 
   const calculateAge = (date: Date) => {
     const today = new Date();
@@ -87,6 +99,8 @@ export default function Step1({
   // ✅ BS → AD conversion
   useEffect(() => {
     if (!dobBS || isSyncing.current) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dobBS)) return;
+
     try {
       isSyncing.current = true;
       const [bsYear, bsMonth, bsDay] = dobBS.split("-").map(Number);
@@ -105,6 +119,8 @@ export default function Step1({
   // ✅ AD → BS conversion
   useEffect(() => {
     if (!dobAD || isSyncing.current) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dobAD)) return;
+
     try {
       isSyncing.current = true;
       const [adYear, adMonth, adDay] = dobAD.split("-").map(Number);
@@ -134,14 +150,18 @@ export default function Step1({
       {/* Full Name Nepali */}
       <div>
         <label className="block mb-1">Full Name (Nepali)</label>
-        <Input {...register("fullNameNepali")} placeholder="नेपालीमा टाइप गर्नुहोस्" />
+        <Input {...register("fullNameNepali")} placeholder="नेपालीमा टाइप गर्नुहोस्" readOnly />
       </div>
 
       {/* Gender */}
       <div>
         <label className="block mb-1">Gender</label>
         <Select
-          onValueChange={(val) => setValue("gender", val as any, { shouldValidate: true })}
+          onValueChange={(val) =>
+            setValue("gender", val as "Male" | "Female" | "Other", {
+              shouldValidate: true,
+            })
+          }
           value={gender || ""}
         >
           <SelectTrigger>
