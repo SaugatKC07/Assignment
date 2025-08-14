@@ -1,10 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true, // ✅ correct placement
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/stepper',
+        permanent: false,
+      },
+    ];
   },
-  /* other config options here */
 };
 
 export default nextConfig;
