@@ -4,15 +4,16 @@ import React, { useState } from "react";
 import Step1 from "@/components/Step1";
 import Step2 from "@/components/Step2";
 import Step3 from "@/components/Step3";
+import { FormData } from "@/types";
 
 export default function Page() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState<any>({});
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [formData, setFormData] = useState<FormData>({});
 
-  const steps = ["Personal Info", "Additional Info", "Review & Submit"];
+  const steps: string[] = ["Personal Info", "Additional Info", "Review & Submit"];
 
-  const handleNext = (data: any) => {
-    setFormData((prev: any) => ({ ...prev, ...data }));
+  const handleNext = (data: Partial<FormData>) => {
+    setFormData((prev) => ({ ...prev, ...data }));
     setCurrentStep((prev) => prev + 1);
   };
 
@@ -42,7 +43,9 @@ export default function Page() {
             </div>
             <p
               className={`mt-2 text-sm ${
-                index === currentStep ? "font-bold text-blue-600" : "text-gray-500"
+                index === currentStep
+                  ? "font-bold text-blue-600"
+                  : "text-gray-500"
               }`}
             >
               {step}

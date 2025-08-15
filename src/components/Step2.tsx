@@ -13,7 +13,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import DateConverter from "nepali-date-converter";
+import NepaliDate from "nepali-date-converter";
 
 const districts = [
   "Achham", "Arghakhanchi", "Baglung", "Baitadi", "Bajhang", "Bajura", "Banke", "Bara", "Bardiya",
@@ -57,7 +57,7 @@ export default function Step2({
 }) {
   const [frontPreview, setFrontPreview] = useState<string | null>(null);
   const [backPreview, setBackPreview] = useState<string | null>(null);
-  const lastUpdated = useRef<"BS" | "AD" | null>(null);
+  const isSyncing = useRef(false);
 
   const {
     register,
@@ -74,41 +74,69 @@ export default function Step2({
   const issuedBS = watch("issuedDateBS");
   const issuedAD = watch("issuedDateAD");
 
-  // ✅ BS → AD
+  // Helper: parses either YYYY-MM-DD or MM/DD/YYYY
+  function parseDateString(dateStr: string) {
+    if (!dateStr) return null;
+    if (dateStr.includes("/")) {
+      const [month, day, year] = dateStr.split("/").map(Number);
+      return { year, month, day };
+    } else if (dateStr.includes("-")) {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      return { year, month, day };
+    }
+    return null;
+  }
+
+  // BS → AD
   useEffect(() => {
-    if (issuedBS && lastUpdated.current !== "BS") {
-      try {
-        const [bsYear, bsMonth = "01", bsDay = "01"] = issuedBS.split("-").map(Number);
-        if (bsYear && bsMonth && bsDay) {
-          const ad = new DateConverter(bsYear, bsMonth, bsDay, "BS").toAd();
-          const adStr = `${ad.year}-${String(ad.month).padStart(2, "0")}-${String(ad.date).padStart(2, "0")}`;
-          if (adStr !== issuedAD) {
-            lastUpdated.current = "BS";
-            setValue("issuedDateAD", adStr, { shouldValidate: true });
-          }
-        }
-      } catch (err) {
-        console.error("BS→AD conversion error:", err);
+    if (!issuedBS || isSyncing.current) return;
+    const parsed = parseDateString(issuedBS);
+    if (!parsed) return;
+
+    try {
+      isSyncing.current = true;
+      const nepDate = NepaliDate.fromBS({
+        year: parsed.year,
+        month: parsed.month - 1,
+        date: parsed.day,
+      });
+
+      const adDate = nepDate.toAD();
+      const adStr = `${adDate.getFullYear()}-${String(adDate.getMonth() + 1).padStart(2, "0")}-${String(
+        adDate.getDate()
+      ).padStart(2, "0")}`;
+
+      if (adStr !== issuedAD) {
+        setValue("issuedDateAD", adStr, { shouldValidate: true });
       }
+    } catch (err) {
+      console.error("BS → AD conversion error:", err);
+    } finally {
+      setTimeout(() => (isSyncing.current = false), 0);
     }
   }, [issuedBS]);
 
-  // ✅ AD → BS
+  // AD → BS
   useEffect(() => {
-    if (issuedAD && lastUpdated.current !== "AD") {
-      try {
-        const [adYear, adMonth = "01", adDay = "01"] = issuedAD.split("-").map(Number);
-        if (adYear && adMonth && adDay) {
-          const bs = new DateConverter(adYear, adMonth, adDay, "AD").toBs();
-          const bsStr = `${bs.year}-${String(bs.month).padStart(2, "0")}-${String(bs.date).padStart(2, "0")}`;
-          if (bsStr !== issuedBS) {
-            lastUpdated.current = "AD";
-            setValue("issuedDateBS", bsStr, { shouldValidate: true });
-          }
-        }
-      } catch (err) {
-        console.error("AD→BS conversion error:", err);
+    if (!issuedAD || isSyncing.current) return;
+    const parsed = parseDateString(issuedAD);
+    if (!parsed) return;
+
+    try {
+      isSyncing.current = true;
+      const adJs = new Date(parsed.year, parsed.month - 1, parsed.day);
+      const nepDate = NepaliDate.fromAD(adJs);
+      const bs = nepDate.getBS();
+
+      const bsStr = `${bs.year}-${String(bs.month + 1).padStart(2, "0")}-${String(bs.date).padStart(2, "0")}`;
+
+      if (bsStr !== issuedBS) {
+        setValue("issuedDateBS", bsStr, { shouldValidate: true });
       }
+    } catch (err) {
+      console.error("AD → BS conversion error:", err);
+    } finally {
+      setTimeout(() => (isSyncing.current = false), 0);
     }
   }, [issuedAD]);
 
@@ -145,9 +173,7 @@ export default function Step2({
       <div>
         <label className="block mb-1">Issued District</label>
         <Select
-          onValueChange={(val) =>
-            setValue("issuedDistrict", val, { shouldValidate: true })
-          }
+          onValueChange={(val) => setValue("issuedDistrict", val, { shouldValidate: true })}
           value={watch("issuedDistrict") || ""}
         >
           <SelectTrigger>

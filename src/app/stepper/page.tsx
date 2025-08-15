@@ -4,20 +4,13 @@ import React, { useState } from "react";
 import Step1 from "@/components/Step1";
 import Step2 from "@/components/Step2";
 import Step3 from "@/components/Step3";
-
-type FormData = {
-  name?: string;
-  email?: string;
-  age?: number;
-  address?: string;
-  // Add other form fields here
-};
+import { FormData } from "@/types";
 
 export default function Page() {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState<number>(0);
   const [formData, setFormData] = useState<FormData>({});
 
-  const steps = ["Personal Info", "Additional Info", "Review & Submit"];
+  const steps: string[] = ["Personal Info", "Additional Info", "Review & Submit"];
 
   const handleNext = (data: Partial<FormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
